@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Anything</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background-color: #0f172a;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 50px;
+    }
+    h1 {
+      color: #60a5fa;
+    }
+    input {
+      padding: 10px;
+      width: 250px;
+      border: none;
+      border-radius: 8px;
+      margin-right: 10px;
+      outline: none;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      background-color: #2563eb;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    #results {
+      margin-top: 40px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: left;
+    }
+    .result-item {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      transition: transform 0.2s ease;
+    }
+    .result-item:hover {
+      transform: scale(1.02);
+    }
+    .result-item a {
+      color: #93c5fd;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .result-item a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Search Anything</h1>
+
+  <input type="text" id="searchInput" placeholder="Enter topic (e.g. React)" />
+  <button onclick="performSearch()">Search</button>
+
+  <div id="results"></div>
+
+  <script>
+    async function performSearch() {
+      const query = document.getElementById("searchInput").value.trim();
+      if (!query) return alert("Please enter a topic!");
+
+      document.getElementById("results").innerHTML = "<p>Loading...</p>";
+
+      try {
+        const res = await fetch(`http://localhost:8000/search?query=${encodeURIComponent(query)}`);
+        const data = await res.json();
+
+        if (data.error) {
+          document.getElementById("results").innerHTML = `<p>Error: ${data.error}</p>`;
+          return;
+        }
+
+        if (!data.results || data.results.length === 0) {
+          document.getElementById("results").innerHTML = "<p>No results found.</p>";
+          return;
+        }
+
+        const html = data.results.map(
+          item => `
+            <div class="result-item">
+              <a href="${item.url}" target="_blank">${item.title}</a>
+            </div>
+          `
+        ).join("");
+
+        document.getElementById("results").innerHTML = html;
+
+      } catch (err) {
+        document.getElementById("results").innerHTML = `<p>Error fetching results.</p>`;
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>
