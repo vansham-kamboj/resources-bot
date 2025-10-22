@@ -32,7 +32,7 @@ async def research_post(query: str = Form(...)):
 
 # Optional: serve static frontend
 from fastapi.staticfiles import StaticFiles
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+#app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 # Uvicorn entrypoint for Render
 if __name__ == "__main__":
