@@ -1,11 +1,12 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import requests
-import urllib.parse
+from research_core import search_educational_resources, fetch_page_snippet
+import os
 
 app = FastAPI()
 
-# Allow frontend access
+# Enable CORS for all origins (you can restrict this for production)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,36 +15,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-def home():
-    return {"message": "FastAPI Search API running!"}
+# API endpoint supporting both GET and POST
+@app.get("/research")
+async def research_get(query: str):
+    resources = search_educational_resources(query, max_results=8)
+    for r in resources:
+        r["snippet"] = fetch_page_snippet(r["link"])
+    return {"original_query": query, "resources": resources}
 
+@app.post("/research")
+async def research_post(query: str = Form(...)):
+    resources = search_educational_resources(query, max_results=8)
+    for r in resources:
+        r["snippet"] = fetch_page_snippet(r["link"])
+    return JSONResponse({"original_query": query, "resources": resources})
 
-@app.get("/search")
-def search_topic(query: str = Query(..., min_length=1)):
-    try:
-        url = f"https://api.duckduckgo.com/?q={query}&format=json&no_redirect=1"
-        response = requests.get(url)
-        data = response.json()
+# Optional: serve static frontend
+from fastapi.staticfiles import StaticFiles
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
-        results = []
-        if "RelatedTopics" in data:
-            for item in data["RelatedTopics"]:
-                if "Text" in item and "FirstURL" in item:
-                    clean_url = item["FirstURL"]
-                    # Decode any redirect or encoded URL (DuckDuckGo returns encoded links)
-                    if "uddg=" in clean_url:
-                        parsed = urllib.parse.parse_qs(urllib.parse.urlparse(clean_url).query)
-                        if "uddg" in parsed:
-                            clean_url = parsed["uddg"][0]
-                    clean_url = urllib.parse.unquote(clean_url)
-
-                    results.append({
-                        "title": item["Text"],
-                        "url": clean_url
-                    })
-
-        return {"query": query, "results": results}
-
-    except Exception as e:
-        return {"error": str(e)}
+# Uvicorn entrypoint for Render
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=port)
