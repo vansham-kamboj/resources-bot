@@ -1,6 +1,12 @@
 services:
   - type: web
-    name: research-ai-backend
+    name: research-bot
     env: python
+    plan: free
+    region: sydney 
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "10000"  
