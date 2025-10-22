@@ -1,60 +1,31 @@
-import json
-import random
+import requests
+from bs4 import BeautifulSoup
 
-# Path to pre-fetched resources JSON
-RESOURCE_FILE = "pre_fetched_resources.json"
+def search_educational_resources(query: str, num_web_results=6, num_youtube_results=5):
+    results = {"web": [], "youtube": []}
 
-def load_resources():
-    """
-    Load pre-fetched resources from JSON file.
-    JSON structure:
-    {
-        "ReactJS": [
-            {"title": "...", "link": "...", "snippet": "...", "type": "Web"},
-            {"title": "...", "link": "...", "snippet": "...", "type": "YouTube"}
-        ],
-        "Python": [...]
-    }
-    """
-    try:
-        with open(RESOURCE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data
-    except Exception as e:
-        print("Error loading resources:", e)
-        return {}
+    # --- Web Results (DuckDuckGo HTML search) ---
+    url = f"https://duckduckgo.com/html/?q={query}"
+    res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+    soup = BeautifulSoup(res.text, "html.parser")
 
-def search_educational_resources(query, max_web=6, max_youtube=5):
-    """
-    Search resources from pre-fetched JSON.
-    Returns combined list of Web + YouTube resources.
-    """
-    all_resources = load_resources()
-    results = []
+    for link in soup.select(".result__a")[:num_web_results]:
+        results["web"].append({
+            "title": link.get_text(),
+            "url": link["href"]
+        })
 
-    # Case-insensitive match of query with keys
-    matched_topics = [
-        topic for topic in all_resources.keys()
-        if query.lower() in topic.lower()
-    ]
+    # --- YouTube Results (Google search restricted to youtube.com) ---
+    yt_url = f"https://www.google.com/search?q=site:youtube.com+{query}+hindi+english"
+    yt_res = requests.get(yt_url, headers={"User-Agent": "Mozilla/5.0"})
+    yt_soup = BeautifulSoup(yt_res.text, "html.parser")
 
-    for topic in matched_topics:
-        resources = all_resources[topic]
-        # Separate Web and YouTube
-        web_res = [r for r in resources if r["type"] == "Web"][:max_web]
-        yt_res = [r for r in resources if r["type"] == "YouTube"][:max_youtube]
-        results.extend(web_res + yt_res)
-
-    # If nothing matched, optionally return random resources
-    if not results:
-        all_items = [r for resources in all_resources.values() for r in resources]
-        results = random.sample(all_items, min(max_web + max_youtube, len(all_items)))
+    for g in yt_soup.select("a")[:num_youtube_results]:
+        href = g.get("href", "")
+        if "youtube.com/watch" in href:
+            results["youtube"].append({
+                "title": g.get_text() or "YouTube Video",
+                "url": href
+            })
 
     return results
-
-def fetch_page_snippet(url, max_chars=300):
-    """
-    Optional: Not used in pre-fetched version.
-    Kept for compatibility with app.py
-    """
-    return "Snippet unavailable in pre-fetched mode."
