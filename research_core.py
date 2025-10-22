@@ -1,31 +1,38 @@
+from ddgs import DDGS
 import requests
 from bs4 import BeautifulSoup
+import time
 
-def search_educational_resources(query: str, num_web_results=6, num_youtube_results=5):
-    results = {"web": [], "youtube": []}
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ResourceBot/1.0"
 
-    # --- Web Results (DuckDuckGo HTML search) ---
-    url = f"https://duckduckgo.com/html/?q={query}"
-    res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-    soup = BeautifulSoup(res.text, "html.parser")
+def search_educational_resources(query, max_results=8, pause=0.2):
+    """
+    Searches DuckDuckGo for educational resources (tutorials, docs, courses, GitHub, YouTube)
+    """
+    resources = []
+    keywords = ["tutorial", "docs", "course", "github", "video", "roadmap", "guide"]
 
-    for link in soup.select(".result__a")[:num_web_results]:
-        results["web"].append({
-            "title": link.get_text(),
-            "url": link["href"]
-        })
+    with DDGS() as ddgs:
+        for r in ddgs.text(query, max_results=max_results):
+            link = r.get("href")
+            title = r.get("title") or link
+            body = r.get("body") or ""
+            if any(k.lower() in title.lower() + body.lower() for k in keywords):
+                resources.append({
+                    "title": title,
+                    "link": link,
+                    "snippet": body[:200]
+                })
+            time.sleep(pause)
+    return resources
 
-    # --- YouTube Results (Google search restricted to youtube.com) ---
-    yt_url = f"https://www.google.com/search?q=site:youtube.com+{query}+hindi+english"
-    yt_res = requests.get(yt_url, headers={"User-Agent": "Mozilla/5.0"})
-    yt_soup = BeautifulSoup(yt_res.text, "html.parser")
-
-    for g in yt_soup.select("a")[:num_youtube_results]:
-        href = g.get("href", "")
-        if "youtube.com/watch" in href:
-            results["youtube"].append({
-                "title": g.get_text() or "YouTube Video",
-                "url": href
-            })
-
-    return results
+def fetch_page_snippet(url, max_chars=300):
+    try:
+        headers = {"User-Agent": USER_AGENT}
+        resp = requests.get(url, headers=headers, timeout=6)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        text = " ".join([p.get_text(strip=True) for p in soup.find_all("p")])
+        return text[:max_chars]
+    except:
+        return ""
