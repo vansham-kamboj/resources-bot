@@ -1,7 +1,7 @@
 fastapi
-uvicorn
-ddgs
+uvicorn[standard]
 requests
 beautifulsoup4
+ddgs
 jinja2
 python-multipart
